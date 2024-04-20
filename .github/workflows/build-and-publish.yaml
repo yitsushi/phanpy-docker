@@ -7,10 +7,14 @@ on:
         description: Target Phanpy version
         required: true
         type: string
+        default: latest
+  schedule:
+    - cron: "0 */6 * * *"
 
 env:
   REGISTRY: ghcr.io
   IMAGE_NAME: ${{ github.repository }}
+  UPSTREAM: cheeaun/phanpy
 
 jobs:
   build_and_push_to_registry:
@@ -20,28 +24,57 @@ jobs:
       contents: read
       packages: write
     steps:
+      - name: Check version
+        id: version
+        run: |
+          echo "### Status" >> ${GITHUB_STEP_SUMMARY}
+
+          tag="${{ inputs.logLevel || 'latest' }}"
+
+          if [[ "${tag}" == "latest" ]]; then
+            tag=$(curl -s https://api.github.com/repos/${UPSTREAM}/releases/latest \
+                  | jq --raw-output '.tag_name')
+          fi
+
+          echo "value=${tag}" >> ${GITHUB_OUTPUT}
+          echo " - Tag: ${tag}" >> ${GITHUB_STEP_SUMMARY}
+      - uses: warjiang/setup-skopeo@main
+      - name: Check if tag needs_update
+        id: tag_check
+        run: |
+          if skopeo inspect docker://${REGISTRY}/${IMAGE_NAME}:${{ steps.version.outputs.value }}; then
+            echo ":green_square: We are up to date!" >> ${GITHUB_STEP_SUMMARY}
+            echo "needs_update=false"
+          else
+            echo ":red_square: **Update required!**" >> ${GITHUB_STEP_SUMMARY}
+            echo "needs_update=true"
+          fi
       - name: Checkout repository
+        if: ${{ steps.tag_check.outputs.needs_update == 'true' }}
         uses: actions/checkout@v4
       - name: Log in to the Container registry
+        if: ${{ steps.tag_check.outputs.needs_update == 'true' }}
         uses: docker/login-action@v3
         with:
           registry: ${{ env.REGISTRY }}
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
       - name: Extract metadata for Docker
+        if: ${{ steps.tag_check.outputs.needs_update == 'true' }}
         id: meta
         uses: docker/metadata-action@v5
         with:
           images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
           tags: |
-            ${{ inputs.phanpy_version }}
+            ${{ steps.version.outputs.value }}
             latest
       - name: Build and push Docker image
+        if: ${{ steps.tag_check.outputs.needs_update == 'true' }}
         uses: docker/build-push-action@v5
         with:
           context: .
           push: true
           build-args: |
-            VERSION=${{ inputs.phanpy_version }}
+            VERSION=${{ steps.version.outputs.value }}
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
