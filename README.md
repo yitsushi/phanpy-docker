@@ -13,7 +13,7 @@ docker run ghcr.io/yitsushi/phanpy-docker:latest
 version: "3.9"
 services:
   phanpy:
-    image: ghcr.io/cheeaun/phanpy:latest
+    image: ghcr.io/yitsushi/phanpy-docker:latest
     container_name: phanpy
     ports:
       - 8080:80
