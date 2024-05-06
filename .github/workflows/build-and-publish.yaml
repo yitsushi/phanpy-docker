@@ -9,7 +9,7 @@ on:
         type: string
         default: latest
   schedule:
-    - cron: "0 */6 * * *"
+    - cron: "0 */4 * * *"
 
 env:
   REGISTRY: ghcr.io
