@@ -44,10 +44,10 @@ jobs:
         run: |
           if skopeo inspect docker://${REGISTRY}/${IMAGE_NAME}:${{ steps.version.outputs.value }}; then
             echo ":green_square: We are up to date!" >> ${GITHUB_STEP_SUMMARY}
-            echo "needs_update=false"
+            echo "needs_update=false" >> ${GITHUB_OUTPUT}
           else
             echo ":red_square: **Update required!**" >> ${GITHUB_STEP_SUMMARY}
-            echo "needs_update=true"
+            echo "needs_update=true" >> ${GITHUB_OUTPUT}
           fi
       - name: Checkout repository
         if: ${{ steps.tag_check.outputs.needs_update == 'true' }}
